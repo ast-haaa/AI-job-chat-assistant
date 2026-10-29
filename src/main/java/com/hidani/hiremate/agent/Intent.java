@@ -1,0 +1,15 @@
+package com.hidani.hiremate.agent;
+
+public enum Intent {
+    GREETING_OR_HELP,
+    MATCH_JOBS,
+    REFINE_FILTER,
+    APPLY_JOB,
+    CONFIRM_APPLICATION,
+    CANCEL_APPLICATION,
+    VIEW_APPLICATIONS,
+    CHECK_APPLICATION_STATUS,
+    RESUME_STATUS,
+    UNKNOWN
+}
+
