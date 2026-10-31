@@ -169,7 +169,7 @@ flowchart TD
 HireMate AI includes a native, secure Google Gemini integration using Java 21's `HttpClient`:
 
 - **Environment Variable**: `GEMINI_API_KEY`
-- **Model Used**: `gemini-1.5-flash` (or configured via `GEMINI_MODEL`)
+- **Model Used**: `gemini-3.8-flash` (or configured via `GEMINI_MODEL`)
 - **Key Security**: Keys are read strictly from system environment variables or `application.properties`. Keys are **never** logged, exposed to the frontend, or committed to source control.
 - **Graceful Fallback**: If `GEMINI_API_KEY` is not provided, the application runs with 100% functionality using the built-in deterministic NLU engine.
 

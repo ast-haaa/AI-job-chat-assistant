@@ -34,7 +34,7 @@ public class GeminiService {
     @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("${gemini.model:gemini-1.5-flash}")
+    @Value("${gemini.model:gemini-3.8-flash}")
     private String modelName;
 
     private final ObjectMapper objectMapper;
@@ -71,7 +71,7 @@ public class GeminiService {
                     You are the NLU parser for HireMate AI, a career assistant.
                     Analyze the user message and output a JSON object with:
                     - "intent": One of [GREETING_OR_HELP, MATCH_JOBS, REFINE_FILTER, APPLY_JOB, CONFIRM_APPLICATION, CANCEL_APPLICATION, VIEW_APPLICATIONS, CHECK_APPLICATION_STATUS, RESUME_STATUS, UNKNOWN]
-                    - "targetJobNumber": Integer (if user mentions job number like 'apply to job 2', or null)
+                    - "targetJobNumber": Integer (if user mentions job number like 'apply to job 3', or null)
                     - "remoteOnly": Boolean or null (true if user specifies remote)
                     - "employmentType": String or null ('internship', 'full-time', etc.)
                     - "requiredSkills": List of skill strings mentioned (e.g. ['React', 'Java'])
@@ -97,7 +97,7 @@ public class GeminiService {
                     )
             ));
 
-            String cleanModel = modelName != null && !modelName.isBlank() ? modelName.trim() : "gemini-1.5-flash";
+            String cleanModel = modelName != null && !modelName.isBlank() ? modelName.trim() : "gemini-3.8-flash";
             String url = GEMINI_API_ENDPOINT + cleanModel + ":generateContent?key=" + apiKey.trim();
 
             HttpRequest request = HttpRequest.newBuilder()

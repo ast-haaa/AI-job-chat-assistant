@@ -14,5 +14,6 @@ COPY --from=build /app/data ./data
 
 EXPOSE 8080
 ENV PORT=8080
+ENV GEMINI_MODEL=gemini-3.8-flash
 ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
 
