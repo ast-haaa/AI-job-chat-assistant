@@ -36,9 +36,13 @@ public class ChatController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ChatResponse> chatJson(@RequestBody ChatRequest request, HttpSession session) {
         String userMessage = request != null && request.getMessage() != null ? request.getMessage().trim() : "";
-        log.info("Received chat message from session {}: '{}'", session.getId(), userMessage);
+        String convId = (request != null && request.getConversationId() != null && !request.getConversationId().isBlank())
+                ? request.getConversationId().trim()
+                : session.getId();
 
-        ChatResponse response = orchestratorAgent.processMessage(session.getId(), userMessage);
+        log.info("Received chat message from conversation {} (session {}): '{}'", convId, session.getId(), userMessage);
+
+        ChatResponse response = orchestratorAgent.processMessage(convId, userMessage, session.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -48,18 +52,26 @@ public class ChatController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ChatResponse> chatMultipart(@RequestParam(value = "message", required = false) String message,
                                                       @RequestParam(value = "file", required = false) MultipartFile file,
+                                                      @RequestParam(value = "conversationId", required = false) String conversationId,
                                                       HttpSession session) {
         String userMessage = message != null ? message.trim() : "";
+        String convId = (conversationId != null && !conversationId.isBlank()) ? conversationId.trim() : session.getId();
 
         // If file is attached in chat request, parse and save to session
         if (file != null && !file.isEmpty()) {
             try {
                 ResumeProfile profile = resumeParserService.parseResume(file);
-                SessionConversationContext ctx = orchestratorAgent.getOrCreateSessionContext(session.getId());
-                ctx.setResumeProfile(profile);
+
+                // Save at user session level so all conversations have access
+                SessionConversationContext sessionCtx = orchestratorAgent.getOrCreateSessionContext(session.getId());
+                sessionCtx.setResumeProfile(profile);
+
+                // Also attach to this specific conversation
+                SessionConversationContext convCtx = orchestratorAgent.getOrCreateSessionContext(convId);
+                convCtx.setResumeProfile(profile);
 
                 String followUp = !userMessage.isBlank() ? userMessage : "Find jobs matching my resume";
-                ChatResponse response = orchestratorAgent.processMessage(session.getId(), followUp);
+                ChatResponse response = orchestratorAgent.processMessage(convId, followUp, session.getId());
                 response.setResumeProfile(profile);
 
                 String combinedMessage = "Uploaded and parsed **" + file.getOriginalFilename() + "** successfully!\n\n"
@@ -74,8 +86,17 @@ public class ChatController {
             }
         }
 
-        ChatResponse response = orchestratorAgent.processMessage(session.getId(), userMessage);
+        ChatResponse response = orchestratorAgent.processMessage(convId, userMessage, session.getId());
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Delete an individual conversation context on the server.
+     */
+    @DeleteMapping("/conversations/{conversationId}")
+    public ResponseEntity<?> deleteConversation(@PathVariable("conversationId") String conversationId) {
+        orchestratorAgent.removeConversationContext(conversationId);
+        return ResponseEntity.ok(Map.of("message", "Conversation context removed.", "conversationId", conversationId));
     }
 
     /**

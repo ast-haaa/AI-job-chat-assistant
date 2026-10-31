@@ -28,7 +28,7 @@ public class IntentClassifier {
         String lower = raw.toLowerCase(Locale.ROOT);
         String cleanText = lower.replaceAll("[^a-z0-9\\s]", " ").replaceAll("\\s+", " ").trim();
 
-        // 1. If there is a pending confirmation, check for confirmation or cancellation first
+        // If there is a pending confirmation, check for confirmation or cancellation first
         if (context != null && context.getPendingConfirmation() != null) {
             if (isConfirmation(cleanText)) {
                 return Intent.CONFIRM_APPLICATION;
@@ -38,7 +38,7 @@ public class IntentClassifier {
             }
         }
 
-        // 2. Greetings and help (support punctuation and variations like "Hi, what can you do?")
+        // Greetings and help (support punctuation and variations like "Hi, what can you do?")
         if (cleanText.equals("hi") || cleanText.equals("hello") || cleanText.equals("hey")
                 || cleanText.startsWith("hi ") || cleanText.startsWith("hello ") || cleanText.startsWith("hey ")
                 || cleanText.contains("what can you do") || cleanText.contains("who are you")
@@ -47,7 +47,7 @@ public class IntentClassifier {
             return Intent.GREETING_OR_HELP;
         }
 
-        // 3. Application History & Status
+        // Application History & Status
         if (lower.contains("applied jobs") || lower.contains("my applications")
                 || lower.contains("application history") || lower.contains("which jobs have i applied")
                 || lower.contains("show applied") || lower.contains("jobs i applied")) {
@@ -58,7 +58,7 @@ public class IntentClassifier {
             return Intent.CHECK_APPLICATION_STATUS;
         }
 
-        // 4. Job Application request: "apply to job 3", "apply job 1", "apply 2"
+        // Job Application request: "apply to job 3", "apply job 1", "apply 2"
         if (lower.contains("apply") || lower.contains("submit application")) {
             // Check if there is a job number mentioned
             if (extractJobNumber(raw) != null) {
@@ -69,13 +69,13 @@ public class IntentClassifier {
             }
         }
 
-        // 5. Resume status or info
+        // Resume status or info
         if (lower.equals("resume") || lower.equals("my resume") || lower.contains("view resume")
                 || lower.contains("show resume") || lower.contains("resume details") || lower.contains("parsed profile")) {
             return Intent.RESUME_STATUS;
         }
 
-        // 6. Conversational Filter or Job Match
+        // Conversational Filter or Job Match
         if (lower.contains("job") || lower.contains("internship") || lower.contains("remote")
                 || lower.contains("match") || lower.contains("roles") || lower.contains("vacancies")
                 || lower.contains("positions") || lower.contains("filter") || containsSkillMention(lower)) {

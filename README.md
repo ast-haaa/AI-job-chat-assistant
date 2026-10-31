@@ -13,6 +13,8 @@ It provides an end-to-end workflow: from parsing PDF/DOCX resumes, to evaluating
 - **Data Persistence**: Thread-safe JSON file storage (`data/jobs.json`, `data/applications.json`)
 - **Frontend**: Clean, responsive single-page chat interface written in HTML5, CSS3, and Vanilla JavaScript (No React, Node.js, or external JS build tools required)
 - **Architecture**: Modular Tool-based Agent pattern (`OrchestratorAgent`) with session-isolated conversation context (`SessionConversationContext`).
+- **AI & LLM Integration**: Google Gemini LLM API integration (`GeminiService`) via native Java 21 `HttpClient`, featuring automatic graceful fallback to a deterministic rule-based NLU engine (`IntentClassifier`) when no key is set or offline.
+- **Security & Portability**: Zero hardcoded credentials. Dynamic cloud port resolution (`${PORT:8080}`) for seamless Docker deployment on Render, Railway, or AWS.
 
 ---
 
@@ -47,9 +49,9 @@ Once started, the application serves both backend APIs and the frontend on port 
 
 ---
 
-## Step-by-Step Feature Breakdown
+## Core Features & System Capabilities
 
-### 1. Resume Upload & Parsing (Step 2)
+### Resume Upload & Parsing
 - **Endpoint**: `POST /api/resume/parse` (accepts `multipart/form-data`)
 - **Supported Formats**: `.pdf` (via Apache PDFBox) and `.docx` (via Apache POI).
 - **Validation**: Enforces 5 MB upload limits, rejects empty files, detects encrypted or scanned documents, and handles corrupted files without crashing the server.
@@ -63,7 +65,7 @@ Once started, the application serves both backend APIs and the frontend on port 
   - Academic & Personal Projects
 - **Privacy & Session Isolation**: Parsed profiles are stored strictly within the user's `HttpSession` state. Different browser sessions never share candidate data.
 
-### 2. Real Job Dataset Collection (Step 3)
+### Real Job Dataset Collection
 - **Storage**: `data/jobs.json`
 - **Permitted Public APIs**:
   1. **Arbeitnow Public Job Board API**: Free official public job board API (`https://www.arbeitnow.com/api/job-board-api`) returning real tech positions with genuine URLs.
@@ -75,14 +77,14 @@ Once started, the application serves both backend APIs and the frontend on port 
 - **Run the Collector Separately**:
   ```bash
   # Execute the standalone ingestion utility (Target: 2,000 real jobs)
-  mvn compile exec:java -Dexec.mainClass="com.hidani.hiremate.ingestion.JobCollector"
+  mvn compile exec:java "-Dexec.mainClass=com.hidani.hiremate.ingestion.JobCollector"
   ```
 - **Job REST Endpoints**:
   - `GET /api/jobs?page=0&size=10` — Paginated job listings
   - `GET /api/jobs/{jobId}` — Retrieve specific job details
   - `GET /api/jobs/count` — Total verified listings loaded
 
-### 3. Transparent Weighted Job Matching (Step 4)
+### Transparent Weighted Job Matching
 - **Algorithm**:
   - **Skill Overlap (50% weight)**: Normalized alias matching (e.g., `ReactJS` $\rightarrow$ `React`, `SpringBoot` $\rightarrow$ `Spring Boot`, `K8s` $\rightarrow$ `Kubernetes`).
   - **Title Similarity (30% weight)**: Token overlap between candidate target role and job title.
@@ -96,19 +98,24 @@ Once started, the application serves both backend APIs and the frontend on port 
   - Location: *"Find roles in Bengaluru"*
   - Reset: *"Clear filters"*
 
-### 4. Autonomous Agent Architecture & Dataflow
+### Autonomous Agent Architecture & Dataflow
 
-HireMate employs a lightweight, decoupled agent architecture without heavyweight external frameworks:
+HireMate employs a lightweight, decoupled agent architecture with a hybrid LLM + Rule-Based NLU engine:
 
 ```mermaid
 flowchart TD
     User([User / Browser])
     Frontend["HTML5 / CSS / Vanilla JS Chat UI"]
     
-    subgraph SpringBoot ["Spring Boot Application Server (Port 8080)"]
+    subgraph SpringBoot ["Spring Boot Application Server (Port 8080 / Dynamic $PORT)"]
         Controllers["REST Controllers\n- ChatController\n- ResumeController\n- JobController\n- ApplicationController"]
         Orchestrator["OrchestratorAgent\n(Central Coordination Engine)"]
-        NLU["IntentClassifier\n(Rule-based NLU & Filter Extraction)"]
+        
+        subgraph NLU_Layer ["Hybrid NLU & AI Engine"]
+            Gemini["GeminiService\n(Google Gemini LLM via HttpClient)"]
+            Rules["IntentClassifier\n(Rule-based NLU & Filter Fallback)"]
+        end
+
         Context["SessionConversationContext\n(HttpSession-Scoped State)"]
         
         subgraph Tools ["Agent Tools"]
@@ -135,7 +142,7 @@ flowchart TD
     User <-->|HTTP / JSON / Multipart| Frontend
     Frontend <-->|REST Endpoints| Controllers
     Controllers <--> Orchestrator
-    Orchestrator <--> NLU
+    Orchestrator <--> NLU_Layer
     Orchestrator <--> Context
     Orchestrator --> Tools
     
@@ -150,10 +157,32 @@ flowchart TD
 
 #### End-to-End Dataflow:
 1. **Resume Ingestion**: The user uploads a PDF or DOCX file via `POST /api/resume/parse`. `ResumeParserService` extracts raw text via Apache PDFBox/POI, extracts candidate fields (name, email, skills, experience, education, projects) using regex and normalized dictionaries, and saves the profile in `SessionConversationContext`.
-2. **Conversational Intent Classification**: When the user posts a message to `POST /api/chat`, `IntentClassifier` analyzes user utterances, detects intents (greetings, job queries, filter refinements, application requests, status checks), extracts structured filter parameters, and delegates to the corresponding tool.
+2. **Hybrid Intent Classification & Reasoning**: When the user posts a message to `POST /api/chat`, `OrchestratorAgent` first checks if `GeminiService` is available (`GEMINI_API_KEY`). If available, Gemini performs contextual intent classification and extracts structured filters (remote, role keywords, skills, match percentage). If the key is not set or network fails, it immediately and seamlessly falls back to the deterministic `IntentClassifier`.
 3. **Job Matching & Filtering**: `JobMatchingTool` pulls the candidate's active profile and filters from `SessionConversationContext`, queries `JobDataService` (which has loaded and deduplicated 2,000 verified listings from `data/jobs.json`), computes transparent weighted scores, and saves the 1-based indexed results back into the session context.
 4. **Interactive Application & Confirmation**: When the user says *"Apply to job 2"*, `ApplicationTool` resolves the 2nd listing from the session context, verifies the company/title, and creates a pending confirmation. Once confirmed (*"Yes, apply"*), `ApplicationService` records the application thread-safely in `data/applications.json`.
 5. **Session Isolation**: All user states (resumes, recommendation lists, active filters, pending confirmations) are scoped strictly per browser session using `HttpSession`, ensuring multi-user privacy without requiring accounts or logins.
+
+---
+
+### Google Gemini LLM API Configuration
+
+HireMate AI includes a native, secure Google Gemini integration using Java 21's `HttpClient`:
+
+- **Environment Variable**: `GEMINI_API_KEY`
+- **Model Used**: `gemini-1.5-flash` (or configured via `GEMINI_MODEL`)
+- **Key Security**: Keys are read strictly from system environment variables or `application.properties`. Keys are **never** logged, exposed to the frontend, or committed to source control.
+- **Graceful Fallback**: If `GEMINI_API_KEY` is not provided, the application runs with 100% functionality using the built-in deterministic NLU engine.
+
+#### To Run with Gemini Enabled:
+```bash
+# On Linux / macOS / Render:
+export GEMINI_API_KEY="your-google-gemini-api-key"
+mvn spring-boot:run
+
+# On Windows PowerShell:
+$env:GEMINI_API_KEY="your-google-gemini-api-key"
+mvn spring-boot:run
+```
 
 ---
 
@@ -188,39 +217,70 @@ flowchart TD
 
 ---
 
-### 7. Deployment Guide (Live Deployed Link)
+### Cloud Deployment Guide (Live Deployed Link)
 
-To get a **live deployed link** as requested in the submission guidelines, you can deploy using any free or low-cost cloud provider in minutes:
+To get a **live deployed link** as requested in the submission guidelines, you can deploy using any free cloud provider in minutes:
 
-#### Option A: Deploy to Render (Recommended - Free)
+#### Deploy to Render (Recommended)
 1. Push your repository to your GitHub account:
    ```bash
    git init
    git add .
-   git commit -m "Initial commit of HireMate AI"
-   git remote add origin https://github.com/YOUR_USERNAME/hiremate-ai.git
+   git commit -m "Complete HireMate AI autonomous agent"
+   git remote add origin https://github.com/ast-haaa/-AI-job-chat-assistant.git
    git push -u origin main
    ```
 2. Log in to [render.com](https://render.com) and click **New + > Web Service**.
 3. Connect your GitHub repository.
-4. Set:
+4. Set the following configuration:
    - **Environment**: `Docker`
    - **Plan**: `Free`
-5. Click **Create Web Service**. Render builds the provided `Dockerfile` and gives you a live HTTPS link (e.g., `https://hiremate-ai.onrender.com`).
+   - **Environment Variables** (Optional):
+     - `GEMINI_API_KEY`: `your-google-gemini-api-key` (Enables dynamic LLM reasoning)
+5. Click **Create Web Service**. 
+   - Render builds the provided `Dockerfile` and dynamically injects its assigned `$PORT`.
+   - The application automatically binds to `${PORT:8080}` without configuration conflicts.
+   - You receive a public HTTPS live URL (e.g., `https://hiremate-ai.onrender.com`).
 
-#### Option B: Deploy to Railway (Fastest)
-1. Install Railway CLI or connect via [railway.app](https://railway.app).
+#### Deploy to Railway
+1. Log in to [railway.app](https://railway.app).
 2. Choose **Deploy from GitHub repo**.
-3. Railway automatically detects Java 21 / Docker and starts the app on port 8080.
-4. Generate a public domain in **Settings > Networking**.
+3. Under Variables, optionally add `GEMINI_API_KEY`.
+4. Railway detects the `Dockerfile` and deploys automatically.
+5. In **Settings > Networking**, click **Generate Domain** to get your public live URL.
 
-#### Option C: Local Tunnel for Live Demo
-If you need an immediate live link for testing:
+#### Local Tunnel for Instant Demo Link
 ```bash
-# Using ngrok or localtunnel
+# Using localtunnel for instant external access to local port 8080
 npx localtunnel --port 8080
 ```
-This generates a live public URL forwarding to your local Spring Boot instance.
+
+---
+
+### Recommended 3–5 Minute Screen Recording Demo Flow
+
+Follow this flow for the screen recording required by the Hidani Tech submission guidelines:
+
+1. **System Introduction (0:00 - 0:45)**:
+   - Open [http://localhost:8080](http://localhost:8080) (or live link).
+   - Point out the clean UI, the active 2,000 real job counter loaded from `data/jobs.json`, and explain the multi-turn agent architecture.
+2. **Resume Upload & Autonomous Parsing (0:45 - 1:45)**:
+   - Drag and drop (or attach) a sample PDF or DOCX resume.
+   - Show how the agent parses contact info, detected skills, experience, and education without fabricating missing data.
+   - Point out the active status indicator updating in the sidebar.
+3. **Conversational Job Matching (1:45 - 2:45)**:
+   - Prompt: *"Find jobs matching my resume"*.
+   - Review the transparent matching score breakdown: skill overlap, title fit, and experience explanation.
+   - Show natural conversational filters: *"Show only remote roles"* or *"Find jobs requiring React"*.
+4. **Application Selection & Interactive Confirmation (2:45 - 3:45)**:
+   - Prompt: *"Apply to job 1"*.
+   - Show the interactive confirmation prompt: *"Would you like me to record this application?"*.
+   - Click or type *"Yes, apply"*.
+   - Highlight the transparency notice: the application is recorded thread-safely in `data/applications.json`, with the original posting link available for external employer submission.
+5. **Application Status Tracking (3:45 - 4:15)**:
+   - Prompt: *"Show my applied jobs"*.
+   - View the recorded application history with timestamps and status.
+   - Prompt: *"Have I applied to [Company]?"* to demonstrate memory and contextual status lookups.
 
 ---
 

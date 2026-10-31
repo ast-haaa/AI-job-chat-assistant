@@ -58,7 +58,7 @@ public class JobCollector {
         Map<String, Job> jobMap = new LinkedHashMap<>();
         Set<String> seenUrls = new HashSet<>();
 
-        // 1. Load existing jobs if file exists (resumable)
+        // Load existing jobs if file exists (resumable)
         Path path = Paths.get(filePath);
         if (Files.exists(path)) {
             try {
@@ -87,17 +87,17 @@ public class JobCollector {
             return jobMap.size();
         }
 
-        // 2. Ingest from Source 1: Arbeitnow API (Paginated)
+        // Ingest from Source: Arbeitnow API (Paginated)
         System.out.println("\n[Source 1] Ingesting from Arbeitnow Public Job API (https://www.arbeitnow.com)...");
         collectFromArbeitnow(jobMap, seenUrls, targetCount);
 
-        // 3. Ingest from Source 2: Remotive API (if needed to reach target)
+        // Ingest from Source: Remotive API (if needed to reach target)
         if (jobMap.size() < targetCount) {
             System.out.println("\n[Source 2] Ingesting from Remotive Public API (https://remotive.com)... (Current: " + jobMap.size() + ")");
             collectFromRemotive(jobMap, seenUrls, targetCount);
         }
 
-        // 4. Save to JSON file
+        // Save to JSON file
         try {
             if (path.getParent() != null && !Files.exists(path.getParent())) {
                 Files.createDirectories(path.getParent());

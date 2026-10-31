@@ -163,7 +163,7 @@ public class JobMatchingService {
             jobSkills = extractSkillsFromDescription(job.getDescription());
         }
 
-        // 1. Skill overlap calculation (Weight: 50%)
+        // Skill overlap calculation (Weight: 50%)
         List<String> matchingSkills = new ArrayList<>();
         List<String> missingSkills = new ArrayList<>();
 
@@ -183,10 +183,10 @@ public class JobMatchingService {
             skillScore = 0.5;
         }
 
-        // 2. Title / Role similarity calculation (Weight: 30%)
+        // Title / Role similarity calculation (Weight: 30%)
         double titleScore = calculateTitleSimilarity(targetRole, job.getTitle());
 
-        // 3. Experience alignment (Weight: 10%)
+        // Experience alignment (Weight: 10%)
         int requiredExpYears = parseExperienceYears(job.getExperienceRequired(), job.getTitle());
         double expScore = 1.0;
         String eligibilityMismatch = null;
@@ -202,7 +202,7 @@ public class JobMatchingService {
             }
         }
 
-        // 4. Remote / Format alignment (Weight: 10%)
+        // Remote / Format alignment (Weight: 10%)
         double remoteScore = job.isRemote() ? 1.0 : 0.7;
 
         // Total weighted score (0-100)

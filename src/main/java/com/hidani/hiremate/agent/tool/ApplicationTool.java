@@ -37,7 +37,7 @@ public class ApplicationTool implements AgentTool {
         SessionConversationContext sessionContext = context.getSessionContext();
         Intent intent = context.getIntent();
 
-        // 1. Handle confirmation of an already pending application
+        // Handle confirmation of an already pending application
         if (intent == Intent.CONFIRM_APPLICATION) {
             SessionConversationContext.PendingConfirmation pending = sessionContext.getPendingConfirmation();
             if (pending == null) {
@@ -55,7 +55,7 @@ public class ApplicationTool implements AgentTool {
                         + "• **Status**: " + saved.getStatus() + "\n"
                         + "• **Date**: " + dateStr + "\n"
                         + "• **Application ID**: `" + saved.getApplicationId() + "`\n\n"
-                        + "*Note: This application has been tracked in your local HireMate session.* You can view your history anytime by asking *\"Show my applied jobs\"*.";
+                        + "*Transparency Notice*: This application is tracked locally in your HireMate dashboard. To complete external submission directly with the employer, use the **View Original Post ↗** link on the job card.";
 
                 return ToolResult.ok(response, Intent.CONFIRM_APPLICATION)
                         .setApplications(List.of(saved));
@@ -69,7 +69,7 @@ public class ApplicationTool implements AgentTool {
             }
         }
 
-        // 2. Handle cancellation of pending application
+        // Handle cancellation of pending application
         if (intent == Intent.CANCEL_APPLICATION) {
             SessionConversationContext.PendingConfirmation pending = sessionContext.getPendingConfirmation();
             sessionContext.clearPendingConfirmation();
@@ -80,7 +80,7 @@ public class ApplicationTool implements AgentTool {
             }
         }
 
-        // 3. Initiate new application: Resolve job number from recommendations
+        // Initiate new application: Resolve job number from recommendations
         Integer targetNumber = context.getTargetJobNumber();
         List<JobMatchResult> recentRecommendations = sessionContext.getLastRecommendations();
 
@@ -111,7 +111,7 @@ public class ApplicationTool implements AgentTool {
         sessionContext.setPendingConfirmation(pending);
 
         String prompt = "You selected **" + title + "** at **" + company + "**.\n\n"
-                + "Would you like me to record this application? (Reply **\"Yes, apply\"** to confirm or **\"Cancel\"** to decline).";
+                + "Would you like me to record this application? (Note: Applications are tracked locally in your HireMate dashboard; external submission requires visiting the employer's official job portal). Reply **\"Yes, apply\"** to confirm or **\"Cancel\"** to decline.";
 
         return ToolResult.ok(prompt, Intent.APPLY_JOB)
                 .setConfirmationRequired(true)

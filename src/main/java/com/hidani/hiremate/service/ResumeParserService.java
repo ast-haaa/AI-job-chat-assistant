@@ -211,7 +211,7 @@ public class ResumeParserService {
     private List<String> extractSkills(String rawText) {
         Set<String> detected = new LinkedHashSet<>();
 
-        // 1. Check known skills in full text using word boundaries
+        // Check known skills in full text using word boundaries
         for (String skill : KNOWN_SKILLS) {
             String escaped = Pattern.quote(skill);
             // Handle special chars like C++, C#, .NET
@@ -221,7 +221,7 @@ public class ResumeParserService {
             }
         }
 
-        // 2. Also check if there is an explicit Skills section
+        // Also check if there is an explicit Skills section
         String[] lines = rawText.split("\\r?\\n");
         boolean inSkillsSection = false;
         for (String line : lines) {

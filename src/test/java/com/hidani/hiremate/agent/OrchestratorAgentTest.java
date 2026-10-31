@@ -99,19 +99,19 @@ public class OrchestratorAgentTest {
         profile.setSkills(List.of("Java", "React"));
         ctx.setResumeProfile(profile);
 
-        // 1. Ask for jobs
+        // Ask for jobs
         ChatResponse matchResp = orchestratorAgent.processMessage(sessionId, "Find jobs matching my resume");
         assertFalse(matchResp.getJobMatches().isEmpty());
         int firstResultDisplayIndex = matchResp.getJobMatches().get(0).getDisplayIndex();
         assertEquals(1, firstResultDisplayIndex);
 
-        // 2. Say "Apply to job 1"
+        // Say "Apply to job 1"
         ChatResponse applyResp = orchestratorAgent.processMessage(sessionId, "Apply to job 1");
         assertTrue(applyResp.isConfirmationRequired());
         assertNotNull(applyResp.getPendingConfirmation());
         assertTrue(applyResp.getMessage().contains("Would you like me to record this application?"));
 
-        // 3. Confirm with "Yes, apply"
+        // Confirm with "Yes, apply"
         ChatResponse confirmResp = orchestratorAgent.processMessage(sessionId, "Yes, apply");
         assertTrue(confirmResp.getMessage().contains("Application successfully recorded"));
         assertFalse(confirmResp.getApplications().isEmpty());

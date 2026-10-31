@@ -30,13 +30,20 @@ public class ResumeController {
 
     @PostMapping("/parse")
     public ResponseEntity<?> uploadAndParseResume(@RequestParam("file") MultipartFile file,
+                                                  @RequestParam(value = "conversationId", required = false) String conversationId,
                                                   HttpSession session) {
         try {
             ResumeProfile profile = resumeParserService.parseResume(file);
 
-            // Store in session-scoped conversation context
-            SessionConversationContext context = orchestratorAgent.getOrCreateSessionContext(session.getId());
-            context.setResumeProfile(profile);
+            // Store in global user session context
+            SessionConversationContext sessionContext = orchestratorAgent.getOrCreateSessionContext(session.getId());
+            sessionContext.setResumeProfile(profile);
+
+            // Also attach to specific conversation if provided
+            if (conversationId != null && !conversationId.isBlank()) {
+                SessionConversationContext convContext = orchestratorAgent.getOrCreateSessionContext(conversationId.trim());
+                convContext.setResumeProfile(profile);
+            }
 
             log.info("Successfully parsed and stored resume for session {}: {} ({})",
                     session.getId(), profile.getName(), profile.getFileName());

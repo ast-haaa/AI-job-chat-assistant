@@ -123,5 +123,27 @@ public class ApplicationServiceTest {
             assertEquals("job-abc", a.getJobId());
         }
     }
+
+    @Test
+    void testFindApplicationsByCompany() {
+        applicationService.applyToJob("session-comp", "job-abc", "Note 1");
+
+        List<Application> googleApps = applicationService.findApplicationsByCompany("session-comp", "google");
+        assertEquals(1, googleApps.size());
+        assertEquals("Google", googleApps.get(0).getCompany());
+
+        List<Application> nonExistent = applicationService.findApplicationsByCompany("session-comp", "Microsoft");
+        assertTrue(nonExistent.isEmpty());
+    }
+
+    @Test
+    void testMalformedJsonStorageHandledGracefully() throws IOException {
+        Path appFile = tempDir.resolve("applications.json");
+        java.nio.file.Files.writeString(appFile, "CORRUPTED_JSON_NOT_VALID_ARRAY");
+
+        List<Application> apps = applicationService.getApplicationsForSession("session-malformed");
+        assertNotNull(apps);
+        assertTrue(apps.isEmpty());
+    }
 }
 
